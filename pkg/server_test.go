@@ -210,7 +210,7 @@ func TestGitOperations(t *testing.T) {
 				}
 
 				// Create server with local repository
-				server := NewGitServer(localDir, gitOps, true) // Enable write access for tests
+				server := NewGitServer([]string{localDir}, gitOps, true) // Enable write access for tests
 				server.RegisterTools()
 
 				// Execute the action and validate results

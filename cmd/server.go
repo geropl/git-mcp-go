@@ -14,6 +14,7 @@ import (
 
 var (
 	repoPath    string
+	repoPaths   []string
 	verbose     bool
 	mode        string
 	writeAccess bool
@@ -25,7 +26,9 @@ var serveCmd = &cobra.Command{
 	Short: "Start the Git MCP server",
 	Long: `Start the Git MCP server.
 
-This command starts the Git MCP server, which provides tools for interacting with Git repositories through the MCP protocol.`,
+This command starts the Git MCP server, which provides tools for interacting with Git repositories through the MCP protocol.
+
+You can specify multiple repositories using the --repositories flag or by passing paths as arguments.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Create the appropriate GitOperations implementation
 		var gitOps gitops.GitOperations
@@ -47,8 +50,34 @@ This command starts the Git MCP server, which provides tools for interacting wit
 			gitOps = shell.NewShellGitOperations()
 		}
 
+		// Collect all repository paths
+		allRepoPaths := make([]string, 0)
+		
+		// Add the single repository if specified
+		if repoPath != "" {
+			allRepoPaths = append(allRepoPaths, repoPath)
+		}
+		
+		// Add repositories from the repositories flag
+		allRepoPaths = append(allRepoPaths, repoPaths...)
+		
+		// Add repositories from arguments
+		allRepoPaths = append(allRepoPaths, args...)
+		
+		if len(allRepoPaths) == 0 {
+			fmt.Fprintf(os.Stderr, "Error: No repositories specified. Use --repository, --repositories, or provide paths as arguments.\n")
+			os.Exit(1)
+		}
+
+		if verbose {
+			fmt.Printf("Monitoring %d repositories\n", len(allRepoPaths))
+			for i, path := range allRepoPaths {
+				fmt.Printf("  %d. %s\n", i+1, path)
+			}
+		}
+
 		// Create and configure the Git MCP server
-		gitServer := pkg.NewGitServer(repoPath, gitOps, writeAccess)
+		gitServer := pkg.NewGitServer(allRepoPaths, gitOps, writeAccess)
 
 		// Register all Git tools
 		gitServer.RegisterTools()
@@ -68,7 +97,8 @@ func init() {
 	rootCmd.AddCommand(serveCmd)
 
 	// Add flags to the server command
-	serveCmd.Flags().StringVarP(&repoPath, "repository", "r", "", "Git repository path")
+	serveCmd.Flags().StringVarP(&repoPath, "repository", "r", "", "Git repository path (single repository, for backward compatibility)")
+	serveCmd.Flags().StringArrayVar(&repoPaths, "repositories", []string{}, "Git repository paths (can be specified multiple times)")
 	serveCmd.Flags().StringVar(&mode, "mode", "shell", "Git operation mode: 'shell' or 'go-git'")
 	serveCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
 	serveCmd.Flags().BoolVar(&writeAccess, "write-access", false, "Enable write access for remote operations (push)")

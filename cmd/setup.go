@@ -23,7 +23,8 @@ func init() {
 	rootCmd.AddCommand(setupCmd)
 
 	// Add flags to the setup command
-	setupCmd.Flags().StringVarP(&repoPath, "repository", "r", "", "Git repository path")
+	setupCmd.Flags().StringVarP(&repoPath, "repository", "r", "", "Git repository path (single repository, for backward compatibility)")
+	setupCmd.Flags().StringArrayVar(&repoPaths, "repositories", []string{}, "Git repository paths (can be specified multiple times)")
 	setupCmd.Flags().StringVar(&mode, "mode", "shell", "Git operation mode: 'shell' or 'go-git'")
 	setupCmd.Flags().BoolVar(&writeAccess, "write-access", false, "Enable write access for remote operations (push)")
 	setupCmd.Flags().StringVar(&tool, "tool", "cline", "The AI assistant tool(s) to set up for (comma-separated, e.g., cline,roo-code)")
@@ -32,11 +33,16 @@ func init() {
 
 // setupCmd represents the setup command
 var setupCmd = &cobra.Command{
-	Use:   "setup",
+	Use:   "setup [repository-paths...]",
 	Short: "Set up the Git MCP server for use with an AI assistant",
 	Long: `Set up the Git MCP server for use with an AI assistant.
 
-This command sets up the Git MCP server for use with an AI assistant by installing the binary and configuring the AI assistant to use it.`,
+This command sets up the Git MCP server for use with an AI assistant by installing the binary and configuring the AI assistant to use it.
+
+You can specify one or more git repositories using:
+- The --repository flag (single repository, for backward compatibility)
+- The --repositories flag (can be specified multiple times)
+- Additional arguments (repository paths)`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Create the MCP servers directory if it doesn't exist
 		homeDir, err := os.UserHomeDir()
@@ -62,6 +68,20 @@ This command sets up the Git MCP server for use with an AI assistant by installi
 			}
 		}
 
+		// Collect all repository paths
+		allRepoPaths := make([]string, 0)
+		
+		// Add the single repository if specified
+		if repoPath != "" {
+			allRepoPaths = append(allRepoPaths, repoPath)
+		}
+		
+		// Add repositories from the repositories flag
+		allRepoPaths = append(allRepoPaths, repoPaths...)
+		
+		// Add repositories from arguments
+		allRepoPaths = append(allRepoPaths, args...)
+
 		// Process each tool
 		tools := strings.Split(tool, ",")
 		hasErrors := false
@@ -78,9 +98,9 @@ This command sets up the Git MCP server for use with an AI assistant by installi
 			var err error
 			switch strings.ToLower(t) {
 			case "cline":
-				err = setupCline(binaryPath, repoPath, writeAccess, autoApprove)
+				err = setupCline(binaryPath, allRepoPaths, writeAccess, autoApprove)
 			case "roo-code":
-				err = setupRooCode(binaryPath, repoPath, writeAccess, autoApprove)
+				err = setupRooCode(binaryPath, allRepoPaths, writeAccess, autoApprove)
 			default:
 				fmt.Printf("Unsupported tool: %s\n", t)
 				fmt.Println("Currently supported tools: cline, roo-code")
@@ -173,16 +193,21 @@ func copySelfToBinaryPath(binaryPath string) error {
 }
 
 // setupTool sets up the git-mcp-go server for a specific tool
-func setupTool(toolName string, binaryPath string, repoPath string, writeAccess bool, autoApprove string, configDir string) error {
+func setupTool(toolName string, binaryPath string, repoPaths []string, writeAccess bool, autoApprove string, configDir string) error {
 	// Create the config directory if it doesn't exist
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
 	serverArgs := []string{"serve"}
-	if repoPath != "" {
-		serverArgs = append(serverArgs, "--repository="+repoPath)
+	
+	// Add repositories to args
+	for _, repoPath := range repoPaths {
+		if repoPath != "" {
+			serverArgs = append(serverArgs, "--repositories="+repoPath)
+		}
 	}
+	
 	if writeAccess {
 		serverArgs = append(serverArgs, "--write-access=true")
 	}
@@ -264,7 +289,7 @@ func setupTool(toolName string, binaryPath string, repoPath string, writeAccess 
 }
 
 // setupCline sets up the git-mcp-go server for Cline
-func setupCline(binaryPath string, repoPath string, writeAccess bool, autoApprove string) error {
+func setupCline(binaryPath string, repoPaths []string, writeAccess bool, autoApprove string) error {
 	// Determine the Cline config directory
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -283,11 +308,11 @@ func setupCline(binaryPath string, repoPath string, writeAccess bool, autoApprov
 		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
 
-	return setupTool("Cline", binaryPath, repoPath, writeAccess, autoApprove, configDir)
+	return setupTool("Cline", binaryPath, repoPaths, writeAccess, autoApprove, configDir)
 }
 
 // setupRooCode sets up the git-mcp-go server for Roo Code
-func setupRooCode(binaryPath string, repoPath string, writeAccess bool, autoApprove string) error {
+func setupRooCode(binaryPath string, repoPaths []string, writeAccess bool, autoApprove string) error {
 	// Determine the Roo Code config directory
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -306,5 +331,5 @@ func setupRooCode(binaryPath string, repoPath string, writeAccess bool, autoAppr
 		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
 
-	return setupTool("Roo Code", binaryPath, repoPath, writeAccess, autoApprove, configDir)
+	return setupTool("Roo Code", binaryPath, repoPaths, writeAccess, autoApprove, configDir)
 }
