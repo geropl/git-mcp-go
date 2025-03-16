@@ -58,14 +58,12 @@ The Git MCP Server uses a command-line structure with subcommands:
 ```
 git-mcp-go
 ├── serve [flags] [repository-paths...]
-│   ├── --repository, -r <path>                   # Single repository (backward compatibility)
-│   ├── --repositories <path>                     # Multiple repositories (can be specified multiple times)
+│   ├── --repository, -r <paths>                  # Repository paths (multiple ways to specify)
 │   ├── --mode <shell|go-git>
 │   ├── --write-access
 │   └── --verbose, -v
 └── setup [flags] [repository-paths...]
-    ├── --repository, -r <path>                   # Single repository (backward compatibility)
-    ├── --repositories <path>                     # Multiple repositories (can be specified multiple times)
+    ├── --repository, -r <paths>                  # Repository paths (multiple ways to specify)
     ├── --mode <shell|go-git>
     ├── --write-access
     ├── --auto-approve <tool-list|allow-read-only|allow-local-only>
@@ -76,9 +74,11 @@ git-mcp-go
 
 The Git MCP Server can now monitor and operate on multiple repositories simultaneously. You can specify repositories in several ways:
 
-1. Using the `-r/--repository` flag (single repository, for backward compatibility)
-2. Using the `--repositories` flag (can be specified multiple times)
-3. Providing repository paths as arguments after the command
+1. Using the `-r/--repository` flag:
+   - With comma-separated paths: `-r=/path/to/repo1,/path/to/repo2`
+   - With multiple flag instances: `-r=/path/to/repo1 -r=/path/to/repo2`
+2. As positional arguments: `serve /path/to/repo1 /path/to/repo2`
+3. A combination of both approaches
 
 When using multiple repositories, the server will default to the first repository for operations where a specific repository is not specified.
 
@@ -87,26 +87,29 @@ When using multiple repositories, the server will default to the first repositor
 The `serve` command starts the Git MCP server:
 
 ```bash
-# Run with a single repository (backward compatibility)
+# Run with a single repository
 ./git-mcp-go serve -r /path/to/git/repository
 
-# Run with multiple repositories using --repositories flag
-./git-mcp-go serve --repositories=/path/to/repo1 --repositories=/path/to/repo2
+# Run with multiple repositories using comma-separated values
+./git-mcp-go serve -r=/path/to/repo1,/path/to/repo2,/path/to/repo3
 
-# Run with multiple repositories as arguments
+# Run with multiple repository flags
+./git-mcp-go serve -r=/path/to/repo1 -r=/path/to/repo2
+
+# Run with repositories as arguments
 ./git-mcp-go serve /path/to/repo1 /path/to/repo2 /path/to/repo3
 
-# Combining all methods
-./git-mcp-go serve -r /path/to/main-repo --repositories=/path/to/repo2 /path/to/repo3
+# Combining flag and arguments
+./git-mcp-go serve -r=/path/to/repo1 /path/to/repo2 /path/to/repo3
 
 # Run with verbose logging
-./git-mcp-go serve -v --repositories=/path/to/repo1 --repositories=/path/to/repo2
+./git-mcp-go serve -v -r=/path/to/repo1,/path/to/repo2
 
 # Run with go-git implementation
-./git-mcp-go serve --mode go-git --repositories=/path/to/repo1 --repositories=/path/to/repo2
+./git-mcp-go serve --mode go-git -r=/path/to/repo1,/path/to/repo2
 
 # Enable write access for remote operations
-./git-mcp-go serve --repositories=/path/to/repo1 --repositories=/path/to/repo2 --write-access
+./git-mcp-go serve -r=/path/to/repo1,/path/to/repo2 --write-access
 ```
 
 The `--mode` flag allows you to choose between two different implementations:
@@ -121,26 +124,29 @@ The `--write-access` flag enables operations that modify remote state (currently
 The `setup` command sets up the Git MCP server for use with an AI assistant. It copies itself to `~/mcp-servers/git-mcp-go` and modifies the tools config (cline: `cline_mcp_settings.json`) to use that binary.
 
 ```bash
-# Set up for Cline with a single repository (backward compatibility)
+# Set up for Cline with a single repository
 ./git-mcp-go setup -r /path/to/git/repository
 
-# Set up with multiple repositories using --repositories flag
-./git-mcp-go setup --repositories=/path/to/repo1 --repositories=/path/to/repo2
+# Set up with multiple repositories using comma-separated values
+./git-mcp-go setup -r=/path/to/repo1,/path/to/repo2,/path/to/repo3
 
-# Set up with multiple repositories as arguments
+# Set up with multiple repository flags
+./git-mcp-go setup -r=/path/to/repo1 -r=/path/to/repo2
+
+# Set up with repositories as arguments
 ./git-mcp-go setup /path/to/repo1 /path/to/repo2 /path/to/repo3
 
 # Set up with write access enabled
-./git-mcp-go setup --repositories=/path/to/repo1 --repositories=/path/to/repo2 --write-access
+./git-mcp-go setup -r=/path/to/repo1,/path/to/repo2 --write-access
 
 # Set up with auto-approval for read-only tools
-./git-mcp-go setup --repositories=/path/to/repo1 --repositories=/path/to/repo2 --auto-approve=allow-read-only
+./git-mcp-go setup -r=/path/to/repo1,/path/to/repo2 --auto-approve=allow-read-only
 
 # Set up with specific tools auto-approved
-./git-mcp-go setup --repositories=/path/to/repo1 --repositories=/path/to/repo2 --auto-approve=git_status,git_log
+./git-mcp-go setup -r=/path/to/repo1,/path/to/repo2 --auto-approve=git_status,git_log
 
 # Set up with write access and auto-approval for read-only tools
-./git-mcp-go setup --repositories=/path/to/repo1 --repositories=/path/to/repo2 --write-access --auto-approve=allow-read-only
+./git-mcp-go setup -r=/path/to/repo1,/path/to/repo2 --write-access --auto-approve=allow-read-only
 ```
 
 The `--auto-approve` flag allows you to specify which tools should be auto-approved (not require explicit user approval):
@@ -194,7 +200,7 @@ chmod +x ./git-mcp-go
 ./git-mcp-go setup -r /path/to/git/repository --tool=cline --auto-approve=allow-local-only
 
 # Setup the mcp server with multiple repositories
-./git-mcp-go setup --repositories=/path/to/repo1 --repositories=/path/to/repo2 --tool=cline --auto-approve=allow-local-only
+./git-mcp-go setup -r=/path/to/repo1,/path/to/repo2 --tool=cline --auto-approve=allow-local-only
 
 rm -f ./git-mcp-go
 ```
@@ -211,7 +217,7 @@ Alternatively, you can manually add this to your `claude_desktop_config.json`:
 "mcpServers": {
   "git": {
     "command": "/path/to/git-mcp-go",
-    "args": ["serve", "--repositories=/path/to/repo1", "--repositories=/path/to/repo2", "--mode", "shell"]
+    "args": ["serve", "-r=/path/to/repo1,/path/to/repo2", "--mode", "shell"]
   }
 }
 ```

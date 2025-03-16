@@ -23,8 +23,8 @@ func init() {
 	rootCmd.AddCommand(setupCmd)
 
 	// Add flags to the setup command
-	setupCmd.Flags().StringVarP(&repoPath, "repository", "r", "", "Git repository path (single repository, for backward compatibility)")
-	setupCmd.Flags().StringArrayVar(&repoPaths, "repositories", []string{}, "Git repository paths (can be specified multiple times)")
+	setupCmd.Flags().StringSliceVarP(&repoPaths, "repository", "r", []string{}, 
+		"Git repository paths (can be specified multiple times, comma-separated, or as positional arguments)")
 	setupCmd.Flags().StringVar(&mode, "mode", "shell", "Git operation mode: 'shell' or 'go-git'")
 	setupCmd.Flags().BoolVar(&writeAccess, "write-access", false, "Enable write access for remote operations (push)")
 	setupCmd.Flags().StringVar(&tool, "tool", "cline", "The AI assistant tool(s) to set up for (comma-separated, e.g., cline,roo-code)")
@@ -40,8 +40,7 @@ var setupCmd = &cobra.Command{
 This command sets up the Git MCP server for use with an AI assistant by installing the binary and configuring the AI assistant to use it.
 
 You can specify one or more git repositories using:
-- The --repository flag (single repository, for backward compatibility)
-- The --repositories flag (can be specified multiple times)
+- The -r/--repository flag (can be specified multiple times or comma-separated)
 - Additional arguments (repository paths)`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Create the MCP servers directory if it doesn't exist
@@ -71,12 +70,7 @@ You can specify one or more git repositories using:
 		// Collect all repository paths
 		allRepoPaths := make([]string, 0)
 		
-		// Add the single repository if specified
-		if repoPath != "" {
-			allRepoPaths = append(allRepoPaths, repoPath)
-		}
-		
-		// Add repositories from the repositories flag
+		// Add repositories from the -r/--repository flag
 		allRepoPaths = append(allRepoPaths, repoPaths...)
 		
 		// Add repositories from arguments
@@ -204,7 +198,7 @@ func setupTool(toolName string, binaryPath string, repoPaths []string, writeAcce
 	// Add repositories to args
 	for _, repoPath := range repoPaths {
 		if repoPath != "" {
-			serverArgs = append(serverArgs, "--repositories="+repoPath)
+			serverArgs = append(serverArgs, "-r="+repoPath)
 		}
 	}
 	
