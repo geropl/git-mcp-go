@@ -189,10 +189,10 @@ func TestSetupCommand(t *testing.T) {
 			os.Setenv("HOME", homeDir)
 			defer os.Setenv("HOME", oldHome)
 
-			// Build the command
+			// Build the command - using -r instead of --repository for the new StringSlice flag format
 			args := []string{"setup", "--tool=" + tc.toolParam}
 			if tc.repoPath != "" {
-				args = append(args, "--repository="+tc.repoPath)
+				args = append(args, "-r="+tc.repoPath)
 			}
 			if tc.writeAccess {
 				args = append(args, "--write-access=true")
@@ -201,12 +201,18 @@ func TestSetupCommand(t *testing.T) {
 				args = append(args, "--auto-approve="+tc.autoApprove)
 			}
 
+			t.Logf("Running command: %s %s", tempBinaryPath, strings.Join(args, " "))
+
 			// Execute the command
 			cmd := exec.Command(tempBinaryPath, args...)
 			var stdout, stderr bytes.Buffer
 			cmd.Stdout = &stdout
 			cmd.Stderr = &stderr
 			err = cmd.Run()
+
+			// Log output for debugging
+			t.Logf("Command stdout: %s", stdout.String())
+			t.Logf("Command stderr: %s", stderr.String())
 
 			// Check exit code
 			exitCode := 0
@@ -238,26 +244,71 @@ func TestSetupCommand(t *testing.T) {
 }
 
 // Helper function to verify file expectations
-func verifyFileExpectations(t *testing.T, rootDir string, fileExpects map[string]fileExpectation, ) {
+func verifyFileExpectations(t *testing.T, rootDir string, fileExpects map[string]fileExpectation) {
 	for tool, expect := range fileExpects {
-		filePath := filepath.Join(rootDir, expect.path)
-
-		// Check if file exists
-		_, err := os.Stat(filePath)
-		if os.IsNotExist(err) {
+		// Extract the important part after "globalStorage/"
+		parts := strings.Split(expect.path, "globalStorage/")
+		if len(parts) != 2 {
+			t.Fatalf("Invalid test path format for %s: %s", tool, expect.path)
+			continue
+		}
+		
+		// The important part is what comes after "globalStorage/"
+		importantPathSuffix := parts[1]
+		
+		// Find the file in any OS-specific path structure
+		found := false
+		var actualContent []byte
+		var foundPath string
+		
+		err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			
+			// Skip directories
+			if info.IsDir() {
+				return nil
+			}
+			
+			// Check if this is our target file
+			if strings.Contains(path, "globalStorage/"+importantPathSuffix) {
+				found = true
+				foundPath = path
+				
+				// Read the file content if needed
+				if expect.content != "" {
+					content, err := os.ReadFile(path)
+					if err != nil {
+						return err
+					}
+					actualContent = content
+				}
+				
+				// Stop the walk
+				return filepath.SkipDir
+			}
+			
+			return nil
+		})
+		
+		if err != nil {
+			t.Fatalf("Error walking directory tree: %v", err)
+		}
+		
+		// Check if we found the file
+		if !found {
 			if expect.mustExist {
-				t.Errorf("Expected file %s was not created for %s", filePath, tool)
+				t.Errorf("Expected file with suffix 'globalStorage/%s' was not created for %s", 
+					importantPathSuffix, tool)
 			}
 			continue
 		}
-
+		
+		t.Logf("Found matching file for %s: %s", tool, foundPath)
+		
 		// File exists, verify content if expected
 		if expect.content != "" {
-			actualContent, err := os.ReadFile(filePath)
-			if err != nil {
-				t.Fatalf("Failed to read configuration file %s: %v", filePath, err)
-			}
-
 			// Parse both expected and actual content as JSON for comparison
 			var expectedJSON, actualJSON map[string]interface{}
 			
@@ -266,7 +317,7 @@ func verifyFileExpectations(t *testing.T, rootDir string, fileExpects map[string
 			}
 			
 			if err := json.Unmarshal(actualContent, &actualJSON); err != nil {
-				t.Fatalf("Failed to parse actual JSON in file %s: %v", filePath, err)
+				t.Fatalf("Failed to parse actual JSON in file %s: %v", foundPath, err)
 			}
 			
 			// Process the JSON objects to make them comparable
