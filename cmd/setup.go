@@ -23,7 +23,7 @@ func init() {
 	rootCmd.AddCommand(setupCmd)
 
 	// Add flags to the setup command
-	setupCmd.Flags().StringSliceVarP(&repoPaths, "repository", "r", []string{}, 
+	setupCmd.Flags().StringSliceVarP(&repoPaths, "repository", "r", []string{},
 		"Git repository paths (can be specified multiple times, comma-separated, or as positional arguments)")
 	setupCmd.Flags().StringVar(&mode, "mode", "shell", "Git operation mode: 'shell' or 'go-git'")
 	setupCmd.Flags().BoolVar(&writeAccess, "write-access", false, "Enable write access for remote operations (push)")
@@ -69,10 +69,10 @@ You can specify one or more git repositories using:
 
 		// Collect all repository paths
 		allRepoPaths := make([]string, 0)
-		
+
 		// Add repositories from the -r/--repository flag
 		allRepoPaths = append(allRepoPaths, repoPaths...)
-		
+
 		// Add repositories from arguments
 		allRepoPaths = append(allRepoPaths, args...)
 
@@ -199,7 +199,7 @@ func setupTool(toolName string, binaryPath string, repoPaths []string, writeAcce
 	}
 
 	serverArgs := []string{"serve"}
-	
+
 	// Add repositories to args based on the number of repositories
 	// For backward compatibility with tests, use --repository format for single repository
 	if len(repoPaths) == 1 {
@@ -213,7 +213,7 @@ func setupTool(toolName string, binaryPath string, repoPaths []string, writeAcce
 			}
 		}
 	}
-	
+
 	if writeAccess {
 		serverArgs = append(serverArgs, "--write-access=true")
 	}

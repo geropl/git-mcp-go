@@ -55,9 +55,9 @@ func TestGitOperations(t *testing.T) {
 	// Test cases table
 	testCases := []struct {
 		name           string
-		setupFunc      func(t *testing.T, remoteRepo, localRepo string) // Setup repositories
-		action         string                                           // MCP action to run
-		params         map[string]interface{}                           // Parameters for the action
+		setupFunc      func(t *testing.T, remoteRepo, localRepo string)               // Setup repositories
+		action         string                                                         // MCP action to run
+		params         map[string]interface{}                                         // Parameters for the action
 		expectedResult func(t *testing.T, result string, remoteDir string, err error) // Validation function
 	}{
 		{
@@ -65,14 +65,14 @@ func TestGitOperations(t *testing.T) {
 			setupFunc: func(t *testing.T, remoteRepo, localRepo string) {
 				initRepos(t, remoteRepo, localRepo)
 				createCommit(t, localRepo, "test.txt", "test content", "Initial commit")
-				
+
 				// Get the current branch name
 				cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
 				cmd.Dir = localRepo
 				output, err := cmd.Output()
 				require.NoError(t, err)
 				branch := strings.TrimSpace(string(output))
-				
+
 				// Set the branch parameter
 				t.Logf("Current branch: %s", branch)
 			},
@@ -148,11 +148,11 @@ func TestGitOperations(t *testing.T) {
 
 				// Create a temporary directory to check the remote branch
 				tempDir := t.TempDir()
-				
+
 				// Clone the remote repository to the temp directory
 				cmd = exec.Command("git", "clone", "--branch", "feature", remoteDir, tempDir)
 				require.NoError(t, cmd.Run())
-				
+
 				// Verify the commit exists in the feature branch
 				cmd = exec.Command("git", "log", "--oneline")
 				cmd.Dir = tempDir

@@ -19,14 +19,14 @@ func TestMultiRepositorySupport(t *testing.T) {
 
 	// Initialize the repositories
 	gitOps := shell.NewShellGitOperations()
-	
+
 	// Initialize the repos
 	_, err := gitOps.InitRepo(repo1Dir)
 	require.NoError(t, err, "Failed to initialize repo1")
-	
+
 	_, err = gitOps.InitRepo(repo2Dir)
 	require.NoError(t, err, "Failed to initialize repo2")
-	
+
 	_, err = gitOps.InitRepo(repo3Dir)
 	require.NoError(t, err, "Failed to initialize repo3")
 
@@ -66,7 +66,7 @@ func TestMultiRepositorySupport(t *testing.T) {
 		// Create a server with multiple repositories
 		repoPaths := []string{repo1Dir, repo2Dir, repo3Dir}
 		server := NewGitServer(repoPaths, gitOps, false)
-		
+
 		// Test default repository selection (first repository)
 		selectedPath, err := server.getRepoPathForOperation("")
 		require.NoError(t, err, "Default repository selection should not error")
@@ -136,9 +136,9 @@ func TestMultiRepositorySupport(t *testing.T) {
 			if textContent, ok := mcp.AsTextContent(result.Content[0]); ok {
 				text = textContent.Text
 			}
-			assert.True(t, strings.Contains(text, "Repository path error") || 
-			           strings.Contains(text, "access denied"),
-			           "Output should indicate repository path error")
+			assert.True(t, strings.Contains(text, "Repository path error") ||
+				strings.Contains(text, "access denied"),
+				"Output should indicate repository path error")
 		}
 	})
 }

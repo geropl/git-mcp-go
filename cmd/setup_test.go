@@ -17,8 +17,8 @@ import (
 
 // Define expectation types
 type fileExpectation struct {
-	path     string
-	content  string
+	path      string
+	content   string
 	mustExist bool
 }
 
@@ -32,9 +32,9 @@ func TestSetupCommand(t *testing.T) {
 	defer os.RemoveAll(filepath.Dir(binaryPath))
 
 	type expectations struct {
-		files       map[string]fileExpectation // map of tool to file expectation
-		errors      []string
-		exitCode    int
+		files    map[string]fileExpectation // map of tool to file expectation
+		errors   []string
+		exitCode int
 	}
 
 	// Define test cases
@@ -252,30 +252,30 @@ func verifyFileExpectations(t *testing.T, rootDir string, fileExpects map[string
 			t.Fatalf("Invalid test path format for %s: %s", tool, expect.path)
 			continue
 		}
-		
+
 		// The important part is what comes after "globalStorage/"
 		importantPathSuffix := parts[1]
-		
+
 		// Find the file in any OS-specific path structure
 		found := false
 		var actualContent []byte
 		var foundPath string
-		
+
 		err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
-			
+
 			// Skip directories
 			if info.IsDir() {
 				return nil
 			}
-			
+
 			// Check if this is our target file
 			if strings.Contains(path, "globalStorage/"+importantPathSuffix) {
 				found = true
 				foundPath = path
-				
+
 				// Read the file content if needed
 				if expect.content != "" {
 					content, err := os.ReadFile(path)
@@ -284,46 +284,46 @@ func verifyFileExpectations(t *testing.T, rootDir string, fileExpects map[string
 					}
 					actualContent = content
 				}
-				
+
 				// Stop the walk
 				return filepath.SkipDir
 			}
-			
+
 			return nil
 		})
-		
+
 		if err != nil {
 			t.Fatalf("Error walking directory tree: %v", err)
 		}
-		
+
 		// Check if we found the file
 		if !found {
 			if expect.mustExist {
-				t.Errorf("Expected file with suffix 'globalStorage/%s' was not created for %s", 
+				t.Errorf("Expected file with suffix 'globalStorage/%s' was not created for %s",
 					importantPathSuffix, tool)
 			}
 			continue
 		}
-		
+
 		t.Logf("Found matching file for %s: %s", tool, foundPath)
-		
+
 		// File exists, verify content if expected
 		if expect.content != "" {
 			// Parse both expected and actual content as JSON for comparison
 			var expectedJSON, actualJSON map[string]interface{}
-			
+
 			if err := json.Unmarshal([]byte(expect.content), &expectedJSON); err != nil {
 				t.Fatalf("Failed to parse expected JSON for %s: %v", tool, err)
 			}
-			
+
 			if err := json.Unmarshal(actualContent, &actualJSON); err != nil {
 				t.Fatalf("Failed to parse actual JSON in file %s: %v", foundPath, err)
 			}
-			
+
 			// Process the JSON objects to make them comparable
 			normalizeJSON(expectedJSON)
 			normalizeJSON(actualJSON)
-			
+
 			// Compare the JSON objects
 			if diff := cmp.Diff(expectedJSON, actualJSON); diff != "" {
 				t.Errorf("File content mismatch for %s (-want +got):\n%s", tool, diff)
@@ -339,7 +339,7 @@ func normalizeJSON(jsonObj map[string]interface{}) {
 		if git, ok := mcpServers["git"].(map[string]interface{}); ok {
 			// Remove the command field since it contains the full path
 			delete(git, "command")
-			
+
 			// Sort the autoApprove array
 			if autoApprove, ok := git["autoApprove"].([]interface{}); ok {
 				// Convert to strings and sort
@@ -347,16 +347,16 @@ func normalizeJSON(jsonObj map[string]interface{}) {
 				for i, v := range autoApprove {
 					strSlice[i] = v.(string)
 				}
-				
+
 				// Sort the strings
 				sort.Strings(strSlice)
-				
+
 				// Convert back to []interface{}
 				sortedSlice := make([]interface{}, len(strSlice))
 				for i, v := range strSlice {
 					sortedSlice[i] = v
 				}
-				
+
 				// Replace the original array with the sorted one
 				git["autoApprove"] = sortedSlice
 			}
@@ -378,25 +378,25 @@ func buildBinary() (string, error) {
 		os.RemoveAll(tempDir)
 		return "", fmt.Errorf("failed to get current directory: %w", err)
 	}
-	
+
 	// Ensure we're building from the project root
 	projectRoot := filepath.Dir(currentDir)
 	if filepath.Base(currentDir) != "cmd" {
 		// If we're already in the project root, use the current directory
 		projectRoot = currentDir
 	}
-	
+
 	fmt.Printf("Building binary from project root: %s\n", projectRoot)
-	
+
 	// Build the binary
 	binaryPath := filepath.Join(tempDir, "git-mcp-go")
 	cmd := exec.Command("go", "build", "-o", binaryPath)
 	cmd.Dir = projectRoot // Set the working directory to the project root
-	
+
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	
+
 	if err := cmd.Run(); err != nil {
 		os.RemoveAll(tempDir)
 		return "", fmt.Errorf("failed to build binary: %w\nstdout: %s\nstderr: %s",
@@ -409,7 +409,7 @@ func buildBinary() (string, error) {
 		os.RemoveAll(tempDir)
 		return "", fmt.Errorf("failed to stat binary: %w", err)
 	}
-	
+
 	if info.Size() == 0 {
 		os.RemoveAll(tempDir)
 		return "", fmt.Errorf("binary file is empty")

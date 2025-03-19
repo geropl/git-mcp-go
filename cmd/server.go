@@ -51,13 +51,13 @@ You can specify multiple repositories using the -r/--repository flag (can be rep
 
 		// Collect all repository paths
 		allRepoPaths := make([]string, 0)
-		
+
 		// Add repositories from the -r/--repository flag
 		allRepoPaths = append(allRepoPaths, repoPaths...)
-		
+
 		// Add repositories from arguments
 		allRepoPaths = append(allRepoPaths, args...)
-		
+
 		if len(allRepoPaths) == 0 {
 			fmt.Fprintf(os.Stderr, "Error: No repositories specified. Use --repository or provide paths as arguments.\n")
 			os.Exit(1)
@@ -91,7 +91,7 @@ func init() {
 	rootCmd.AddCommand(serveCmd)
 
 	// Add flags to the server command
-	serveCmd.Flags().StringSliceVarP(&repoPaths, "repository", "r", []string{}, 
+	serveCmd.Flags().StringSliceVarP(&repoPaths, "repository", "r", []string{},
 		"Git repository paths (can be specified multiple times, comma-separated, or as positional arguments)")
 	serveCmd.Flags().StringVar(&mode, "mode", "shell", "Git operation mode: 'shell' or 'go-git'")
 	serveCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")

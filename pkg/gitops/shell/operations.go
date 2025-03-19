@@ -71,12 +71,12 @@ func (s *ShellGitOperations) GetLog(repoPath string, maxCount int) ([]string, er
 	if maxCount > 0 {
 		args = append(args, fmt.Sprintf("-n%d", maxCount))
 	}
-	
+
 	output, err := gitops.RunGitCommand(repoPath, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get log: %w", err)
 	}
-	
+
 	// Split the output into individual commit entries
 	logs := strings.Split(strings.TrimSpace(output), "\n\n")
 	return logs, nil
@@ -88,12 +88,12 @@ func (s *ShellGitOperations) CreateBranch(repoPath string, branchName string, ba
 	if baseBranch != "" {
 		args = append(args, baseBranch)
 	}
-	
+
 	_, err := gitops.RunGitCommand(repoPath, args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to create branch: %w", err)
 	}
-	
+
 	baseRef := baseBranch
 	if baseRef == "" {
 		// Get the current branch name
@@ -104,7 +104,7 @@ func (s *ShellGitOperations) CreateBranch(repoPath string, branchName string, ba
 			baseRef = strings.TrimSpace(currentBranch)
 		}
 	}
-	
+
 	return fmt.Sprintf("Created branch '%s' from '%s'", branchName, baseRef), nil
 }
 
@@ -114,7 +114,7 @@ func (s *ShellGitOperations) CheckoutBranch(repoPath string, branchName string) 
 	if err != nil {
 		return "", fmt.Errorf("failed to checkout branch: %w", err)
 	}
-	
+
 	return fmt.Sprintf("Switched to branch '%s'", branchName), nil
 }
 
@@ -125,12 +125,12 @@ func (s *ShellGitOperations) InitRepo(repoPath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create directory: %w", err)
 	}
-	
+
 	_, err = gitops.RunGitCommand(repoPath, "init")
 	if err != nil {
 		return "", fmt.Errorf("failed to initialize repository: %w", err)
 	}
-	
+
 	gitDir := filepath.Join(repoPath, ".git")
 	return fmt.Sprintf("Initialized empty Git repository in %s", gitDir), nil
 }
@@ -149,20 +149,20 @@ func (s *ShellGitOperations) PushChanges(repoPath string, remote string, branch 
 	if branch != "" {
 		args = append(args, branch)
 	}
-	
+
 	output, err := gitops.RunGitCommand(repoPath, args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to push changes: %w", err)
 	}
-	
+
 	// Check if the output indicates that everything is up-to-date
 	if strings.Contains(output, "up-to-date") {
 		return output, nil
 	}
-	
+
 	// Format the output to match the expected format
-	return fmt.Sprintf("Successfully pushed to %s/%s\n%s", 
-		remote, 
-		branch, 
+	return fmt.Sprintf("Successfully pushed to %s/%s\n%s",
+		remote,
+		branch,
 		output), nil
 }

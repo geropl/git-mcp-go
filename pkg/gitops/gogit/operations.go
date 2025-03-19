@@ -266,12 +266,12 @@ func (g *GoGitOperations) PushChanges(repoPath string, remote string, branch str
 	if err != nil {
 		return "", fmt.Errorf("failed to open repository: %w", err)
 	}
-	
+
 	// Use "origin" as default remote if not specified
 	if remote == "" {
 		remote = "origin"
 	}
-	
+
 	// Determine refspec based on branch
 	var refspec string
 	var branchName string
@@ -290,19 +290,19 @@ func (g *GoGitOperations) PushChanges(repoPath string, remote string, branch str
 		refspec = plumbing.NewBranchReferenceName(branch).String()
 		branchName = branch
 	}
-	
+
 	// Push to remote
 	err = repo.Push(&git.PushOptions{
 		RemoteName: remote,
 		RefSpecs:   []config.RefSpec{config.RefSpec(refspec + ":" + refspec)},
 	})
-	
+
 	if err != nil {
 		if err == git.NoErrAlreadyUpToDate {
 			return "Everything up-to-date", nil
 		}
 		return "", fmt.Errorf("failed to push: %w", err)
 	}
-	
+
 	return fmt.Sprintf("Successfully pushed to %s/%s", remote, branchName), nil
 }
