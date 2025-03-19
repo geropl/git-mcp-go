@@ -87,23 +87,8 @@ When using multiple repositories, the server will default to the first repositor
 The `serve` command starts the Git MCP server:
 
 ```bash
-# Run with a single repository
-./git-mcp-go serve -r /path/to/git/repository
-
-# Run with multiple repositories using comma-separated values
-./git-mcp-go serve -r=/path/to/repo1,/path/to/repo2,/path/to/repo3
-
-# Run with multiple repository flags
-./git-mcp-go serve -r=/path/to/repo1 -r=/path/to/repo2
-
-# Run with repositories as arguments
-./git-mcp-go serve /path/to/repo1 /path/to/repo2 /path/to/repo3
-
-# Combining flag and arguments
-./git-mcp-go serve -r=/path/to/repo1 /path/to/repo2 /path/to/repo3
-
 # Run with verbose logging
-./git-mcp-go serve -v -r=/path/to/repo1,/path/to/repo2
+./git-mcp-go serve -v /path/to/repo1 /path/to/repo2 /path/to/repo3
 
 # Run with go-git implementation
 ./git-mcp-go serve --mode go-git -r=/path/to/repo1,/path/to/repo2
@@ -126,12 +111,6 @@ The `setup` command sets up the Git MCP server for use with an AI assistant. It 
 ```bash
 # Set up for Cline with a single repository
 ./git-mcp-go setup -r /path/to/git/repository
-
-# Set up with multiple repositories using comma-separated values
-./git-mcp-go setup -r=/path/to/repo1,/path/to/repo2,/path/to/repo3
-
-# Set up with multiple repository flags
-./git-mcp-go setup -r=/path/to/repo1 -r=/path/to/repo2
 
 # Set up with repositories as arguments
 ./git-mcp-go setup /path/to/repo1 /path/to/repo2 /path/to/repo3
@@ -222,13 +201,11 @@ Alternatively, you can manually add this to your `claude_desktop_config.json`:
 }
 ```
 
-For backward compatibility, the following still works for a single repository:
-
 ```json
 "mcpServers": {
   "git": {
     "command": "/path/to/git-mcp-go",
-    "args": ["serve", "-r", "/path/to/git/repository", "--mode", "shell"]
+    "args": ["serve", "-r", "/path/to/git/repository"]
   }
 }
 ```
