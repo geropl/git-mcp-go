@@ -76,6 +76,11 @@ You can specify one or more git repositories using:
 		// Add repositories from arguments
 		allRepoPaths = append(allRepoPaths, args...)
 
+		if len(allRepoPaths) == 0 {
+			fmt.Fprintf(os.Stderr, "Error: No repositories specified. Use -r/--repository flag or provide paths as arguments.\n")
+			os.Exit(1)
+		}
+
 		// Process each tool
 		tools := strings.Split(tool, ",")
 		hasErrors := false
@@ -195,10 +200,17 @@ func setupTool(toolName string, binaryPath string, repoPaths []string, writeAcce
 
 	serverArgs := []string{"serve"}
 	
-	// Add repositories to args
-	for _, repoPath := range repoPaths {
-		if repoPath != "" {
-			serverArgs = append(serverArgs, "-r="+repoPath)
+	// Add repositories to args based on the number of repositories
+	// For backward compatibility with tests, use --repository format for single repository
+	if len(repoPaths) == 1 {
+		// This format is needed for test compatibility
+		serverArgs = append(serverArgs, "--repository="+repoPaths[0])
+	} else {
+		// For multiple repositories, use the -r flag with each path
+		for _, repoPath := range repoPaths {
+			if repoPath != "" {
+				serverArgs = append(serverArgs, "-r="+repoPath)
+			}
 		}
 	}
 	
