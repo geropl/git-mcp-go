@@ -20,6 +20,8 @@ This MCP server provides the following Git operations as tools:
 - **git_init**: Initialize a new Git repository
 - **git_push**: Pushes local commits to a remote repository (requires `--write-access` flag)
 - **git_list_repositories**: Lists all available Git repositories
+- **git_apply_patch_string**: Applies a patch from a string to a git repository
+- **git_apply_patch_file**: Applies a patch from a file to a git repository
 
 ## Installation
 

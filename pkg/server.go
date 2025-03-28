@@ -33,13 +33,13 @@ func NewGitServer(repoPaths []string, gitOps gitops.GitOperations, writeAccess b
 		if path == "" {
 			continue
 		}
-		
+
 		absPath, err := filepath.Abs(path)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to resolve path %s: %v\n", path, err)
 			continue
 		}
-		
+
 		// Check if it's a git repository
 		gitDirPath := filepath.Join(absPath, ".git")
 		if info, err := os.Stat(gitDirPath); err == nil && info.IsDir() {
@@ -127,12 +127,14 @@ func GetReadOnlyToolNames() map[string]bool {
 func GetLocalOnlyToolNames() map[string]bool {
 	// local tools that alter state, complementing the read-only tools
 	result := map[string]bool{
-		"git_init":          true,
-		"git_create_branch": true,
-		"git_checkout":      true,
-		"git_commit":        true,
-		"git_add":           true,
-		"git_reset":         true,
+		"git_init":               true,
+		"git_create_branch":      true,
+		"git_checkout":           true,
+		"git_commit":             true,
+		"git_add":                true,
+		"git_reset":              true,
+		"git_apply_patch_string": true,
+		"git_apply_patch_file":   true,
 	}
 
 	for toolName := range GetReadOnlyToolNames() {
@@ -332,6 +334,34 @@ func (s *GitServer) RegisterTools() {
 		mcp.WithDescription("Lists all available Git repositories"),
 	), s.gitListRepositoriesHandler)
 
+	// Register git_apply_patch_string tool
+	applyPatchStringTool := mcp.NewTool("git_apply_patch_string",
+		mcp.WithDescription("Applies a patch from a string to a git repository"),
+		mcp.WithString("repo_path",
+			mcp.Required(),
+			mcp.Description("Path to Git repository"),
+		),
+		mcp.WithString("patch_string",
+			mcp.Required(),
+			mcp.Description("Patch string to apply"),
+		),
+	)
+	s.server.AddTool(applyPatchStringTool, s.gitApplyPatchStringHandler)
+
+	// Register git_apply_patch_file tool
+	applyPatchFileTool := mcp.NewTool("git_apply_patch_file",
+		mcp.WithDescription("Applies a patch from a file to a git repository"),
+		mcp.WithString("repo_path",
+			mcp.Required(),
+			mcp.Description("Path to Git repository"),
+		),
+		mcp.WithString("patch_file",
+			mcp.Required(),
+			mcp.Description("Path to the patch file"),
+		),
+	)
+	s.server.AddTool(applyPatchFileTool, s.gitApplyPatchFileHandler)
+
 	if s.writeAccess {
 		// Register git_push tool
 		pushTool := mcp.NewTool("git_push",
@@ -360,7 +390,7 @@ func (s *GitServer) Serve() error {
 
 func (s *GitServer) gitStatusHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	requestedPath, _ := request.Params.Arguments["repo_path"].(string)
-	
+
 	repoPath, err := s.getRepoPathForOperation(requestedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Repository path error: %v", err)), nil
@@ -376,7 +406,7 @@ func (s *GitServer) gitStatusHandler(ctx context.Context, request mcp.CallToolRe
 
 func (s *GitServer) gitDiffUnstagedHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	requestedPath, _ := request.Params.Arguments["repo_path"].(string)
-	
+
 	repoPath, err := s.getRepoPathForOperation(requestedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Repository path error: %v", err)), nil
@@ -392,7 +422,7 @@ func (s *GitServer) gitDiffUnstagedHandler(ctx context.Context, request mcp.Call
 
 func (s *GitServer) gitDiffStagedHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	requestedPath, _ := request.Params.Arguments["repo_path"].(string)
-	
+
 	repoPath, err := s.getRepoPathForOperation(requestedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Repository path error: %v", err)), nil
@@ -408,7 +438,7 @@ func (s *GitServer) gitDiffStagedHandler(ctx context.Context, request mcp.CallTo
 
 func (s *GitServer) gitDiffHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	requestedPath, _ := request.Params.Arguments["repo_path"].(string)
-	
+
 	repoPath, err := s.getRepoPathForOperation(requestedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Repository path error: %v", err)), nil
@@ -429,7 +459,7 @@ func (s *GitServer) gitDiffHandler(ctx context.Context, request mcp.CallToolRequ
 
 func (s *GitServer) gitCommitHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	requestedPath, _ := request.Params.Arguments["repo_path"].(string)
-	
+
 	repoPath, err := s.getRepoPathForOperation(requestedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Repository path error: %v", err)), nil
@@ -450,7 +480,7 @@ func (s *GitServer) gitCommitHandler(ctx context.Context, request mcp.CallToolRe
 
 func (s *GitServer) gitAddHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	requestedPath, _ := request.Params.Arguments["repo_path"].(string)
-	
+
 	repoPath, err := s.getRepoPathForOperation(requestedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Repository path error: %v", err)), nil
@@ -478,7 +508,7 @@ func (s *GitServer) gitAddHandler(ctx context.Context, request mcp.CallToolReque
 
 func (s *GitServer) gitResetHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	requestedPath, _ := request.Params.Arguments["repo_path"].(string)
-	
+
 	repoPath, err := s.getRepoPathForOperation(requestedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Repository path error: %v", err)), nil
@@ -494,7 +524,7 @@ func (s *GitServer) gitResetHandler(ctx context.Context, request mcp.CallToolReq
 
 func (s *GitServer) gitLogHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	requestedPath, _ := request.Params.Arguments["repo_path"].(string)
-	
+
 	repoPath, err := s.getRepoPathForOperation(requestedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Repository path error: %v", err)), nil
@@ -517,7 +547,7 @@ func (s *GitServer) gitLogHandler(ctx context.Context, request mcp.CallToolReque
 
 func (s *GitServer) gitCreateBranchHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	requestedPath, _ := request.Params.Arguments["repo_path"].(string)
-	
+
 	repoPath, err := s.getRepoPathForOperation(requestedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Repository path error: %v", err)), nil
@@ -545,7 +575,7 @@ func (s *GitServer) gitCreateBranchHandler(ctx context.Context, request mcp.Call
 
 func (s *GitServer) gitCheckoutHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	requestedPath, _ := request.Params.Arguments["repo_path"].(string)
-	
+
 	repoPath, err := s.getRepoPathForOperation(requestedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Repository path error: %v", err)), nil
@@ -566,7 +596,7 @@ func (s *GitServer) gitCheckoutHandler(ctx context.Context, request mcp.CallTool
 
 func (s *GitServer) gitShowHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	requestedPath, _ := request.Params.Arguments["repo_path"].(string)
-	
+
 	repoPath, err := s.getRepoPathForOperation(requestedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Repository path error: %v", err)), nil
@@ -587,7 +617,7 @@ func (s *GitServer) gitShowHandler(ctx context.Context, request mcp.CallToolRequ
 
 func (s *GitServer) gitInitHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	requestedPath, _ := request.Params.Arguments["repo_path"].(string)
-	
+
 	// For init, we don't validate through getRepoPathForOperation since we're creating a new repo
 	if requestedPath == "" {
 		return mcp.NewToolResultError("repo_path must be specified for initialization"), nil
@@ -617,7 +647,7 @@ func (s *GitServer) gitPushHandler(ctx context.Context, request mcp.CallToolRequ
 	}
 
 	requestedPath, _ := request.Params.Arguments["repo_path"].(string)
-	
+
 	repoPath, err := s.getRepoPathForOperation(requestedPath)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Repository path error: %v", err)), nil
@@ -645,20 +675,82 @@ func (s *GitServer) gitPushHandler(ctx context.Context, request mcp.CallToolRequ
 	return mcp.NewToolResultText(result), nil
 }
 
+// gitApplyPatchStringHandler applies a patch from a string to a repository
+func (s *GitServer) gitApplyPatchStringHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	requestedPath, _ := request.Params.Arguments["repo_path"].(string)
+
+	repoPath, err := s.getRepoPathForOperation(requestedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Repository path error: %v", err)), nil
+	}
+
+	patchString, ok := request.Params.Arguments["patch_string"].(string)
+	if !ok {
+		return mcp.NewToolResultError("patch_string must be a string"), nil
+	}
+
+	if strings.TrimSpace(patchString) == "" {
+		return mcp.NewToolResultError("patch_string cannot be empty"), nil
+	}
+
+	result, err := s.gitOps.ApplyPatchFromString(repoPath, patchString)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to apply patch: %v", err)), nil
+	}
+
+	return mcp.NewToolResultText(result), nil
+}
+
+// gitApplyPatchFileHandler applies a patch from a file to a repository
+func (s *GitServer) gitApplyPatchFileHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	requestedPath, _ := request.Params.Arguments["repo_path"].(string)
+
+	repoPath, err := s.getRepoPathForOperation(requestedPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Repository path error: %v", err)), nil
+	}
+
+	patchFile, ok := request.Params.Arguments["patch_file"].(string)
+	if !ok {
+		return mcp.NewToolResultError("patch_file must be a string"), nil
+	}
+
+	if strings.TrimSpace(patchFile) == "" {
+		return mcp.NewToolResultError("patch_file cannot be empty"), nil
+	}
+
+	// Ensure the patch file exists
+	absPath, err := filepath.Abs(patchFile)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid patch file path: %v", err)), nil
+	}
+
+	if _, err := os.Stat(absPath); os.IsNotExist(err) {
+		return mcp.NewToolResultError(fmt.Sprintf("Patch file does not exist: %s", absPath)), nil
+	}
+
+	result, err := s.gitOps.ApplyPatchFromFile(repoPath, absPath)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to apply patch: %v", err)), nil
+	}
+
+	return mcp.NewToolResultText(result), nil
+}
+
 // gitListRepositoriesHandler lists all available repositories
 func (s *GitServer) gitListRepositoriesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	if len(s.repoPaths) == 0 {
 		return mcp.NewToolResultText("No repositories configured"), nil
 	}
-	
+
 	var result strings.Builder
 	result.WriteString(fmt.Sprintf("Available repositories (%d):\n\n", len(s.repoPaths)))
-	
+
 	for i, repoPath := range s.repoPaths {
 		// Get the repository name (last part of the path)
 		repoName := filepath.Base(repoPath)
 		result.WriteString(fmt.Sprintf("%d. %s (%s)\n", i+1, repoName, repoPath))
 	}
-	
+
 	return mcp.NewToolResultText(result.String()), nil
 }
