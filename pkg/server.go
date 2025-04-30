@@ -491,11 +491,21 @@ func (s *GitServer) gitAddHandler(ctx context.Context, request mcp.CallToolReque
 		return mcp.NewToolResultError("files must be a string"), nil
 	}
 
-	// Split the comma-separated list of files
-	files := strings.Split(filesStr, ",")
-	// Trim spaces from each file path
-	for i, file := range files {
-		files[i] = strings.TrimSpace(file)
+	// LLMs are inconsistent with how they interact with this
+	// So, support either single file, comma-separated, or space-delimited
+	var files []string
+	if strings.Contains(filesStr, ",") {
+		files := strings.Split(filesStr, ",")
+		for i, file := range files {
+			files[i] = strings.TrimSpace(file)
+		}
+	} else if strings.Contains(filesStr, " ") {
+		files := strings.Split(filesStr, " ")
+		for i, file := range files {
+			files[i] = strings.TrimSpace(file)
+		}
+	} else {
+		files = []string{filesStr}
 	}
 
 	result, err := s.gitOps.AddFiles(repoPath, files)
