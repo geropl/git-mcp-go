@@ -248,11 +248,21 @@ This project uses GitHub Actions for continuous integration and deployment:
 
 To create a new release:
 ```bash
-# Tag the current commit
-git tag v1.0.0
+# 1. Update the version in pkg/server.go (line ~26)
+# Edit the version string in NewGitServer function
 
-# Push the tag to GitHub
-git push origin v1.0.0
+# 2. Commit the version change
+git add pkg/server.go
+git commit -m "Bump version to v1.3.1"
+
+# 3. Push the commit
+git push origin main
+
+# 4. Tag the current commit
+git tag v1.3.1
+
+# 5. Push the tag to GitHub (this triggers the release)
+git push origin v1.3.1
 ```
 
 ## License

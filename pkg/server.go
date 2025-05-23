@@ -24,7 +24,7 @@ type GitServer struct {
 func NewGitServer(repoPaths []string, gitOps gitops.GitOperations, writeAccess bool) *GitServer {
 	s := server.NewMCPServer(
 		"Git MCP Server",
-		"1.0.0",
+		"1.3.1",
 	)
 
 	// Normalize repository paths
