@@ -242,21 +242,18 @@ func setupTool(toolName string, binaryPath string, repoPaths []string, writeAcce
 		}
 	}
 
-	// Create the MCP settings file
-	settingsPath := filepath.Join(configDir, "cline_mcp_settings.json")
-	newSettings := map[string]interface{}{
-		"mcpServers": map[string]interface{}{
-			"git": map[string]interface{}{
-				"command":     binaryPath,
-				"args":        serverArgs,
-				"disabled":    false,
-				"autoApprove": autoApproveTools,
-			},
-		},
+	// Create the new git server configuration
+	gitServerConfig := map[string]interface{}{
+		"command":     binaryPath,
+		"args":        serverArgs,
+		"disabled":    false,
+		"autoApprove": autoApproveTools,
 	}
 
 	// Check if the settings file already exists
-	var settings map[string]interface{}
+	settingsPath := filepath.Join(configDir, "cline_mcp_settings.json")
+	var finalSettings map[string]interface{}
+	
 	if _, err := os.Stat(settingsPath); err == nil {
 		// Read the existing settings
 		data, err := os.ReadFile(settingsPath)
@@ -265,23 +262,72 @@ func setupTool(toolName string, binaryPath string, repoPaths []string, writeAcce
 		}
 
 		// Parse the existing settings
-		if err := json.Unmarshal(data, &settings); err != nil {
+		var rawSettings map[string]json.RawMessage
+		if err := json.Unmarshal(data, &rawSettings); err != nil {
 			return fmt.Errorf("failed to parse existing settings: %w", err)
 		}
 
-		// Merge the new settings with the existing settings
-		if mcpServers, ok := settings["mcpServers"].(map[string]interface{}); ok {
-			mcpServers["git"] = newSettings["mcpServers"].(map[string]interface{})["git"]
-		} else {
-			settings["mcpServers"] = newSettings["mcpServers"]
+		// Convert back to map[string]interface{} for the top level
+		finalSettings = make(map[string]interface{})
+		for key, rawValue := range rawSettings {
+			if key == "mcpServers" {
+				// Special handling for mcpServers
+				var mcpServers map[string]json.RawMessage
+				if err := json.Unmarshal(rawValue, &mcpServers); err != nil {
+					// If it's not a proper mcpServers object, just preserve it
+					finalSettings[key] = rawValue
+					continue
+				}
+
+				// Create the final mcpServers map
+				finalMcpServers := make(map[string]interface{})
+				
+				// Preserve all existing servers as-is
+				for serverName, serverRaw := range mcpServers {
+					if serverName == "git" {
+						// Replace git with our new configuration
+						finalMcpServers["git"] = gitServerConfig
+						continue
+					}
+					
+					// Preserve other servers exactly as they are
+					var serverConfig interface{}
+					if err := json.Unmarshal(serverRaw, &serverConfig); err != nil {
+						// If unmarshal fails, keep the raw message
+						finalMcpServers[serverName] = serverRaw
+					} else {
+						finalMcpServers[serverName] = serverConfig
+					}
+				}
+				
+				// If git wasn't in the original, add it
+				if _, exists := mcpServers["git"]; !exists {
+					finalMcpServers["git"] = gitServerConfig
+				}
+				
+				finalSettings["mcpServers"] = finalMcpServers
+			} else {
+				// For non-mcpServers keys, unmarshal to preserve structure
+				var value interface{}
+				if err := json.Unmarshal(rawValue, &value); err != nil {
+					// If unmarshal fails, keep the raw message
+					finalSettings[key] = rawValue
+				} else {
+					finalSettings[key] = value
+				}
+			}
 		}
 	} else {
-		// Use the new settings
-		settings = newSettings
+		// No existing file, create new settings
+		finalSettings = map[string]interface{}{
+			"mcpServers": map[string]interface{}{
+				"git": gitServerConfig,
+			},
+		}
 	}
 
 	// Write the settings to the file
-	data, err := json.MarshalIndent(settings, "", "  ")
+	data, err := json.MarshalIndent(finalSettings, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal settings: %w", err)
 	}
