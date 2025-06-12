@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/geropl/git-mcp-go/pkg/gitops"
@@ -266,12 +267,12 @@ func (g *GoGitOperations) PushChanges(repoPath string, remote string, branch str
 	if err != nil {
 		return "", fmt.Errorf("failed to open repository: %w", err)
 	}
-	
+
 	// Use "origin" as default remote if not specified
 	if remote == "" {
 		remote = "origin"
 	}
-	
+
 	// Determine refspec based on branch
 	var refspec string
 	var branchName string
@@ -290,19 +291,65 @@ func (g *GoGitOperations) PushChanges(repoPath string, remote string, branch str
 		refspec = plumbing.NewBranchReferenceName(branch).String()
 		branchName = branch
 	}
-	
+
 	// Push to remote
 	err = repo.Push(&git.PushOptions{
 		RemoteName: remote,
 		RefSpecs:   []config.RefSpec{config.RefSpec(refspec + ":" + refspec)},
 	})
-	
+
 	if err != nil {
 		if err == git.NoErrAlreadyUpToDate {
 			return "Everything up-to-date", nil
 		}
 		return "", fmt.Errorf("failed to push: %w", err)
 	}
-	
+
 	return fmt.Sprintf("Successfully pushed to %s/%s", remote, branchName), nil
+}
+
+// ApplyPatchFromFile applies a patch from a file to the repository
+func (g *GoGitOperations) ApplyPatchFromFile(repoPath string, patchFilePath string) (string, error) {
+	// Ensure the patch file exists
+	if _, err := os.Stat(patchFilePath); os.IsNotExist(err) {
+		return "", fmt.Errorf("patch file does not exist: %s", patchFilePath)
+	}
+
+	// go-git doesn't have direct support for applying patches
+	// We'll use git command for this operation
+	output, err := gitops.RunGitCommand(repoPath, "apply", patchFilePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to apply patch: %w", err)
+	}
+
+	return fmt.Sprintf("Patch from file '%s' applied successfully\n%s", patchFilePath, output), nil
+}
+
+// ApplyPatchFromString applies a patch from a string to the repository
+func (g *GoGitOperations) ApplyPatchFromString(repoPath string, patchString string) (string, error) {
+	// Create a temporary file to store the patch
+	tmpFile, err := os.CreateTemp("", "git-mcp-patch-*.patch")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temporary file: %w", err)
+	}
+	defer os.Remove(tmpFile.Name()) // Clean up the temp file when done
+
+	// Write the patch content to the temporary file
+	if _, err := tmpFile.WriteString(patchString); err != nil {
+		return "", fmt.Errorf("failed to write patch to temporary file: %w", err)
+	}
+
+	// Close the file to ensure all data is written
+	if err := tmpFile.Close(); err != nil {
+		return "", fmt.Errorf("failed to close temporary file: %w", err)
+	}
+
+	// Delegate to the file-based method
+	result, err := g.ApplyPatchFromFile(repoPath, tmpFile.Name())
+	if err != nil {
+		return "", err
+	}
+
+	// Modify the result to remove the file path reference since it's a temporary file
+	return strings.Replace(result, fmt.Sprintf("from file '%s' ", tmpFile.Name()), "", 1), nil
 }
